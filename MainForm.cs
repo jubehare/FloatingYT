@@ -17,7 +17,7 @@ public sealed class MainForm : Form
 
     private bool _inVideo;
 
-    private const string MainFont = MainFont;
+    private const string MainFont = "Segoe UI";
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
