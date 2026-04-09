@@ -2,6 +2,10 @@
 
 A lightweight Windows app that plays online videos in a floating window that stays on top of all other apps. Ideal for multitasking users.🐝
 
+![Screenshot](Screenshot1.png)
+
+_Yes, I watch YouTube while working ᗜˬᗜ_
+
 ---
 
 ## Features
