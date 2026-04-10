@@ -1,5 +1,5 @@
 #define MyAppName "FloatingYT"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #define MyAppExeName "FloatingYT.exe"
 #define PublishDir "publish"
 

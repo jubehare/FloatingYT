@@ -1,3 +1,4 @@
+using System.Drawing.Drawing2D;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Microsoft.Web.WebView2.WinForms;
@@ -16,6 +17,7 @@ public sealed class MainForm : Form
     private Label _statusLbl = null!;
 
     private bool _inVideo;
+    private System.Threading.Timer? _resizeTimer;
 
     private const string MainFont = "Segoe UI";
 
@@ -173,18 +175,66 @@ public sealed class MainForm : Form
 
         var spinner = new Label
         {
-            Text = "Loading...",
+            Text = "Loading",
             ForeColor = Color.FromArgb(160, 160, 160),
             Font = new Font(MainFont, 11f),
             AutoSize = true,
         };
 
+        var cancelBtn = new Button
+        {
+            Text = "Cancel",
+            FlatStyle = FlatStyle.Flat,
+            ForeColor = Color.White,
+            BackColor = Color.FromArgb(40, 40, 40),
+            Font = new Font(MainFont, 9f),
+            AutoSize = true,
+            Padding = new Padding(14, 4, 14, 4),
+            Cursor = Cursors.Hand,
+        };
+        cancelBtn.FlatAppearance.BorderSize = 0;
+        cancelBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(65, 65, 65);
+        cancelBtn.Paint += (_, pe) =>
+        {
+            pe.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            var r = new Rectangle(0, 0, cancelBtn.Width - 1, cancelBtn.Height - 1);
+            using var path = new GraphicsPath();
+            int rad = 6;
+            path.AddArc(r.X, r.Y, rad, rad, 180, 90);
+            path.AddArc(r.Right - rad, r.Y, rad, rad, 270, 90);
+            path.AddArc(r.Right - rad, r.Bottom - rad, rad, rad, 0, 90);
+            path.AddArc(r.X, r.Bottom - rad, rad, rad, 90, 90);
+            path.CloseAllFigures();
+            using var fill = new SolidBrush(cancelBtn.BackColor);
+            pe.Graphics.FillPath(fill, path);
+            using var border = new Pen(Color.FromArgb(90, 90, 90));
+            pe.Graphics.DrawPath(border, path);
+            TextRenderer.DrawText(pe.Graphics, cancelBtn.Text, cancelBtn.Font, r,
+                cancelBtn.ForeColor, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+        };
+        cancelBtn.Click += (_, _) => GoBack();
+
+        void Center()
+        {
+            int cx = _loadingOverlay.Width / 2;
+            int cy = _loadingOverlay.Height / 2;
+            spinner.Location = new Point(cx - spinner.Width / 2, cy - spinner.Height / 2);
+            cancelBtn.Location = new Point(cx - cancelBtn.Width / 2, cy + spinner.Height / 2 + 12);
+        }
+
+        _loadingOverlay.Controls.Add(cancelBtn);
         _loadingOverlay.Controls.Add(spinner);
-        _loadingOverlay.Resize += (_, _) =>
-            spinner.Location = new Point(
-                Math.Max(0, (_loadingOverlay.Width - spinner.Width) / 2),
-                Math.Max(0, (_loadingOverlay.Height - spinner.Height) / 2)
-            );
+        _loadingOverlay.Resize += (_, _) => Center();
+
+        int dots = 0;
+        var dotTimer = new System.Windows.Forms.Timer { Interval = 400 };
+        dotTimer.Tick += (_, _) =>
+        {
+            dots = (dots + 1) % 4;
+            spinner.Text = "Loading" + new string('.', dots);
+            Center();
+        };
+        dotTimer.Start();
 
         Controls.Add(_loadingOverlay);
         _loadingOverlay.BringToFront();
@@ -203,16 +253,29 @@ public sealed class MainForm : Form
                     BeginInvoke(GoBack);
             };
 
+            Resize += (_, _) =>
+            {
+                if (!_inVideo || !_web.Visible) return;
+                BeginInvoke(() => { _web.Visible = false; _loadingOverlay.Visible = true; _loadingOverlay.BringToFront(); });
+                _resizeTimer?.Dispose();
+                _resizeTimer = new System.Threading.Timer(async _ =>
+                {
+                    await _web.CoreWebView2.ExecuteScriptAsync(BackJs);
+                    await Task.Delay(400);
+                    BeginInvoke(() => { _web.Visible = true; _loadingOverlay.Visible = false; });
+                }, null, 350, System.Threading.Timeout.Infinite);
+            };
+
             _web.NavigationCompleted += async (_, _) =>
             {
                 if (!_inVideo) return;
                 var src = _web.Source?.ToString() ?? "";
                 if (string.IsNullOrEmpty(src) || src == "about:blank") return;
 
-                await _web.CoreWebView2.ExecuteScriptAsync(BackJs);
+                try { await _web.CoreWebView2.ExecuteScriptAsync(BackJs); } catch { }
 
                 await Task.Delay(600);
-                BeginInvoke(() => _loadingOverlay.Visible = false);
+                BeginInvoke(() => { _web.Visible = true; _loadingOverlay.Visible = false; });
             };
 
             SetStatus("Paste a URL and click Play");
@@ -252,13 +315,14 @@ public sealed class MainForm : Form
         _inputPanel.Visible = false;
         _loadingOverlay.Visible = true;
         _loadingOverlay.BringToFront();
-        _web.Visible = true;
         _web.CoreWebView2.Navigate(url);
     }
 
     private void GoBack()
     {
         _inVideo = false;
+        _resizeTimer?.Dispose();
+        _resizeTimer = null;
 
         _loadingOverlay.Visible = false;
         _web.Visible = false;

@@ -1,7 +1,7 @@
 (function () {
   if (document.getElementById('fyt-bar')) return;
 
-  const Z_TOOLBAR         = 99999;
+  const Z_TOOLBAR         = 2147483647;
   const Z_PLAYER          = 9000;
   const MOUSE_TRIGGER_Y   = 60;
   const TOOLBAR_HIDE_DELAY = 2500;
@@ -30,7 +30,7 @@
 
   // Back button
   const btn = document.createElement('button');
-  btn.textContent = '← Back';
+  btn.textContent = 'Back';
   btn.style.cssText = `
     background: rgba(255,255,255,0.12);
     color: #fff;
@@ -95,13 +95,19 @@
 
   // Fullscreen CSS
   const host = window.location.hostname;
-  let css = '::-webkit-scrollbar{display:none!important}scrollbar-width:none!important';
+  let css = '::-webkit-scrollbar{display:none!important}html,body{scrollbar-width:none!important}';
 
   if (host.includes('youtube.com')) {
-    css += 'html,body{overflow:hidden!important}';
     css += `
-      #masthead-container,#guide,tp-yt-app-drawer,
-      ytd-mini-guide-renderer{display:none!important}
+      html,body{overflow:hidden!important}
+      #masthead-container,#guide,tp-yt-app-drawer,ytd-mini-guide-renderer,
+      #secondary,#chat,ytd-watch-flexy #below,#related,
+      ytd-comments,#comments,#playlist{display:none!important}
+      ytd-app,ytd-page-manager,ytd-watch-flexy,
+      #page-manager,#columns,#primary,#primary-inner,
+      #player,#player-container,#player-container-outer{
+        transform:none!important;will-change:auto!important;
+        filter:none!important;contain:none!important;isolation:auto!important}
       #movie_player{
         position:fixed!important;top:0!important;left:0!important;
         width:100vw!important;height:100vh!important;z-index:${Z_PLAYER}!important}`;
@@ -127,12 +133,26 @@
 
   } else if (host.includes('bilibili.com')) {
     css += `
+      html,body{overflow:hidden!important}
       .bili-header,.bili-header-m,#nav-header,.fixed-header,
       .video-info-container,.video-info-v1,
       .video-page-side-bar--wrap,.comment-container,
-      .rec-list,.video-page-special-column-wrp,
-      .recommend-list-container,.activity-bar-wrap,
-      header,#reco_list{display:none!important}`;
+      .rec-list,.recommend-list-container,
+      #reco_list{display:none!important}
+      #bilibili-player .bpx-player-control-entity[data-shadow-show="false"],
+      #bilibili-player .bpx-player-control-entity[data-shadow-show="false"] .bpx-player-control-bottom,
+      #bilibili-player .bpx-player-control-entity[data-shadow-show="false"] .bpx-player-control-top,
+      #bilibili-player .bpx-player-shadow-progress-area{
+        opacity:1!important;visibility:visible!important;
+        pointer-events:auto!important}`;
+
+    const reappendBar = () => document.body.appendChild(bar);
+
+    new MutationObserver(mutations => {
+      for (const m of mutations)
+        for (const node of m.addedNodes)
+          if (node !== bar && node.nodeType === 1) { reappendBar(); return; }
+    }).observe(document.body, { childList: true });
 
     const tryWebFs = (attempts) => {
       const selectors = [
@@ -140,16 +160,33 @@
         '.bpx-player-ctrl-full-web',
         '[aria-label="网页全屏"]',
         '[data-key="web-fullscreen"]',
-      ]; 
+      ];
       for (const sel of selectors) {
         const el = document.querySelector(sel);
-        if (el) { el.click(); return; }
+        if (el) {
+          el.click();
+          setTimeout(() => {
+            const s = document.getElementById('fyt-fill');
+            if (s) { s.remove(); document.head.appendChild(s); }
+          }, 1500);
+          setTimeout(reappendBar, 800);
+          setTimeout(reappendBar, 1600);
+          return;
+        }
       }
-      // Fallback: match by button title text
       const all = document.querySelectorAll('.bpx-player-ctrl-btn,.bpx-player-ctrl-btn-icon');
       for (const el of all) {
         const tip = el.getAttribute('data-title') || el.getAttribute('title') || el.textContent;
-        if (tip.includes('网页全屏') || tip.includes('web')) { el.click(); return; }
+        if (tip.includes('网页全屏') || tip.includes('web')) {
+          el.click();
+          setTimeout(() => {
+            const s = document.getElementById('fyt-fill');
+            if (s) { s.remove(); document.head.appendChild(s); }
+          }, 1500);
+          setTimeout(reappendBar, 800);
+          setTimeout(reappendBar, 1600);
+          return;
+        }
       }
       if (attempts > 0) setTimeout(() => tryWebFs(attempts - 1), 800);
     };
