@@ -6,7 +6,7 @@
 [Setup]
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
-AppPublisher=juhsuan-hsu
+AppPublisher=Jube Hare
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 OutputDir=installer
