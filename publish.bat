@@ -27,6 +27,12 @@ if %errorlevel% neq 0 (
 )
 
 del /q "%OUTDIR%\*.xml" 2>nul
+del /q "%OUTDIR%\createdump.exe" 2>nul
+del /q "%OUTDIR%\mscordaccore*.dll" 2>nul
+del /q "%OUTDIR%\mscordbi.dll" 2>nul
+del /q "%OUTDIR%\Microsoft.DiaSymReader.Native.amd64.dll" 2>nul
+del /q "%OUTDIR%\Microsoft.VisualBasic*.dll" 2>nul
+del /q "%OUTDIR%\Microsoft.Web.WebView2.Wpf.dll" 2>nul
 
 echo.
 echo ====================================
